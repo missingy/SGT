@@ -1,0 +1,18 @@
+# Data and generated artifacts
+/data/
+/artifacts/
+/results/
+/logs/
+
+# Generated outputs from external tools
+/external/midi2vec/edgelist/
+/external/midi2vec/midi2edgelist/node_modules/
+
+# Python caches
+__pycache__/
+*.py[cod]
+
+# OS/editor
+.DS_Store
+Thumbs.db
+/.vscode/

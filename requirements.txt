@@ -1,0 +1,10 @@
+gensim
+networkx
+nodevectors
+numpy
+pandas
+pretty_midi
+PyYAML
+scikit-learn
+tensorflow
+tqdm

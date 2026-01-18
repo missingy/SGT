@@ -1,0 +1,48 @@
+seed: 42
+deterministic_tf: false
+
+paths:
+  artifacts_root: artifacts
+  results_jsonl: results/results.jsonl
+  results_csv: results/results.csv
+  logs_root: logs
+
+dataset:
+  id: data
+  data_root: data/Data
+
+steps:
+  edgelist:
+    script: external/midi2vec/midi2edgelist/index.js
+    out_dir: external/midi2vec/edgelist
+  embed:
+    script: external/midi2vec/edgelist2vec/embed.py
+    walk_length: 10
+    num_walks: 40
+    p: 1
+    q: 1
+    dimensions: 100
+    window_size: 5
+    iter: 5
+    workers: 0
+  labels:
+    script: src/make_XMIDI_labels.py
+  piece_vectors:
+    script: src/piece_vectors.py
+    max_hops: 1
+    min_nodes: 5
+    include_file_node: true
+  sgt:
+    script: src/sgt_features.py
+    alpha: 1
+    max_dt_beats: 8
+    token_mode: prog_pitch
+    top_vocab: 64
+  train:
+    script: src/mlp_kfold.py
+    task: both
+    n_splits: 10
+    epochs: 50
+    batch_size: 32
+    lr: 0.001
+    val_split: 0.1

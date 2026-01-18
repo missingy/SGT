@@ -1,0 +1,8 @@
+experiment:
+  name: default
+
+steps:
+  sgt:
+    script: src/sgt_features.py
+  train:
+    task: both
