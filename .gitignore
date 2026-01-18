@@ -4,6 +4,9 @@
 /results/
 /logs/
 
+# legacy files
+/legacy/
+
 # Generated outputs from external tools
 /external/midi2vec/edgelist/
 /external/midi2vec/midi2edgelist/node_modules/
