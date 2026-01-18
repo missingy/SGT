@@ -1,4 +1,4 @@
-# Project Agent Guide (AGENTS.md)
+# Project Guide
 
 ## Project Overview
 This project implements a symbolic music classification pipeline based on MIDI data.
@@ -97,19 +97,3 @@ vocabulary selection) must be performed inside each cross-validation fold
 to avoid information leakage.
 
 Outputs should not overwrite previous results unless explicitly requested.
-
-## Restrictions for the Agent
-❌ Do NOT modify raw datasets in data/
-
-❌ Do NOT regenerate embeddings unless explicitly requested
-
-❌ Do NOT delete or overwrite experiment outputs automatically
-
-✅ Code refactoring, bug fixing, and modularization are allowed
-
-✅ Suggest improvements, but ask before making large structural changes
-
-## Communication Preference
-Prefer minimal, correct, research-grade code
-
-Explain changes in terms of experimental validity
