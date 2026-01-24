@@ -49,6 +49,18 @@ def run(cfg: Dict[str, Any], logger) -> Dict[str, str]:
     sgt_ids = step_cfg.get("sgt_ids")
     if sgt_ids:
         cmd.extend(["--sgt-ids", sgt_ids])
+    sgt_script = step_cfg.get("sgt_script")
+    if sgt_script:
+        cmd.extend(["--sgt-script", sgt_script])
+    if step_cfg.get("sgt_alpha") is not None:
+        cmd.extend(["--sgt-alpha", str(step_cfg["sgt_alpha"])])
+    if step_cfg.get("sgt_max_dt_beats") is not None:
+        cmd.extend(["--sgt-max-dt-beats", str(step_cfg["sgt_max_dt_beats"])])
+    sgt_token_mode = step_cfg.get("sgt_token_mode")
+    if sgt_token_mode:
+        cmd.extend(["--sgt-token-mode", sgt_token_mode])
+    if step_cfg.get("sgt_top_vocab") is not None:
+        cmd.extend(["--sgt-top-vocab", str(step_cfg["sgt_top_vocab"])])
 
     clean_cmd = [c for c in cmd if c]
     logger.info("Running: %s", " ".join(clean_cmd))

@@ -88,7 +88,7 @@ def _run_step(step_name: str, cfg: Dict[str, Any], logger) -> None:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--base", required=True, help="Base config (yaml/json)")
-    ap.add_argument("--dataset", required=True, help="Dataset config (yaml/json)")
+    ap.add_argument("--dataset", default=None, help="Dataset config (yaml/json); optional if provided in experiment")
     ap.add_argument("--experiment", required=True, help="Experiment config (yaml/json)")
     ap.add_argument("--resume", action="store_true", help="Skip steps with existing outputs")
     ap.add_argument("--skip", default="", help="Comma-separated step names to skip")
@@ -99,6 +99,8 @@ def main() -> None:
     cfg.setdefault("paths", {})
     cfg.setdefault("dataset", {})
     cfg.setdefault("steps", {})
+    if not cfg["dataset"]:
+        raise ValueError("dataset config is missing; pass --dataset or define dataset in experiment config.")
 
     dataset_id = cfg["dataset"].get("id") or os.path.splitext(os.path.basename(args.dataset))[0]
     cfg["dataset"]["id"] = dataset_id
@@ -155,6 +157,11 @@ def main() -> None:
     cfg["steps"]["train"]["labels_csv"] = cfg["steps"]["labels"]["out_csv"]
     cfg["steps"]["train"]["sgt_features"] = cfg["steps"]["sgt"]["out_features"]
     cfg["steps"]["train"]["sgt_ids"] = cfg["steps"]["sgt"]["out_ids"]
+    cfg["steps"]["train"]["sgt_script"] = cfg["steps"]["sgt"].get("script")
+    cfg["steps"]["train"]["sgt_alpha"] = cfg["steps"]["sgt"].get("alpha")
+    cfg["steps"]["train"]["sgt_max_dt_beats"] = cfg["steps"]["sgt"].get("max_dt_beats")
+    cfg["steps"]["train"]["sgt_token_mode"] = cfg["steps"]["sgt"].get("token_mode")
+    cfg["steps"]["train"]["sgt_top_vocab"] = cfg["steps"]["sgt"].get("top_vocab")
     cfg["steps"]["train"]["results_jsonl"] = cfg["paths"].get("results_jsonl", "results/results.jsonl")
     cfg["steps"]["train"]["results_csv"] = cfg["paths"].get("results_csv", "results/results.csv")
     cfg["steps"]["train"]["run_id"] = hash_dict({"dataset": dataset_id, "experiment": cfg.get("experiment", {})})

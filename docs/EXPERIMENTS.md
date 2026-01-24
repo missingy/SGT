@@ -17,6 +17,12 @@ Use the smaller dataset:
 python src/runners/run_experiment.py --base configs/base.yaml --dataset configs/datasets/data_100.yaml --experiment configs/experiments/exp_default.yaml --resume
 ```
 
+If your experiment config already contains a `dataset:` section, you can omit `--dataset`:
+
+```
+python src/runners/run_experiment.py --base configs/base.yaml --experiment configs/experiments/exp_default.yaml --resume
+```
+
 ## 2. Config Structure
 
 Configs are merged in this order:

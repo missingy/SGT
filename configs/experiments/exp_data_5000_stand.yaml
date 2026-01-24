@@ -1,0 +1,12 @@
+experiment:
+  name: exp_data_5000_5emotion_5genre_stand
+
+dataset:
+  id: Data_5000
+  data_root: data/Data_5000
+
+steps:
+  sgt:
+    script: src/sgt_features_standard.py
+  train:
+    task: both

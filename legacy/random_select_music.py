@@ -4,8 +4,8 @@ import shutil
 from collections import defaultdict
 
 # ========= 配置区域（请按需要修改） =========
-SOURCE_DIR = r"XMIDI_Dataset"
-TARGET_DIR = r"data/Data_100"
+SOURCE_DIR = r"data/XMIDI_Dataset"
+TARGET_DIR = r"data/Data_5000"
 RANDOM_SEED = 25
 
 # MODE 可选: "genre" / "emotion" / "tag"  / "multitask"
@@ -15,16 +15,15 @@ MODE = "multitask"
 N_PER_GROUP = 100
 
 # 主实验档：multitask每个 Genre 抽多少
-N_PER_GENRE = 100   # MAX = 2500
+N_PER_GENRE = 1000   # MAX = 2500
 
 # 模式1（Genre）
+# 可选：    "classical","country","jazz","pop","rock"
 TARGET_GENRES = {"classical", "country", "jazz", "pop", "rock"}
 
 # 模式2（Emotion）
-TARGET_EMOTIONS = {
-    "exciting","warm","happy","romantic","funny",
-    "sad","angry","lazy","quiet","fear","magnificent"
-}
+# 可选：    "exciting","warm","happy","romantic","funny","sad","angry","lazy","quiet","fear","magnificent"
+TARGET_EMOTIONS = { "sad","happy","romantic","angry","magnificent"}
 #配置模式4需要同时用到以上两个集合
 # ==========================================
 

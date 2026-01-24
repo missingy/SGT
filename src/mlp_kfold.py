@@ -72,6 +72,11 @@ RESULTS_JSONL = None
 RESULTS_CSV = None
 RUN_ID = None
 DATASET_ID = None
+SGT_SCRIPT = None
+SGT_ALPHA = None
+SGT_MAX_DT_BEATS = None
+SGT_TOKEN_MODE = None
+SGT_TOP_VOCAB = None
 # ================================
 
 # ========= Switches / Search Space =========
@@ -746,6 +751,11 @@ def run_experiment(
             "mode": exp.mode,
             "task": TASK,
             "seed": SEED,
+            "sgt_script": SGT_SCRIPT,
+            "sgt_alpha": SGT_ALPHA,
+            "sgt_max_dt_beats": SGT_MAX_DT_BEATS,
+            "sgt_token_mode": SGT_TOKEN_MODE,
+            "sgt_top_vocab": SGT_TOP_VOCAB,
             "emo_acc_mean": emo_acc_m,
             "emo_acc_std": emo_acc_s,
             "emo_f1_mean": emo_f1_m,
@@ -786,6 +796,11 @@ def run_experiment(
             "mode": exp.mode,
             "task": TASK,
             "seed": SEED,
+            "sgt_script": SGT_SCRIPT,
+            "sgt_alpha": SGT_ALPHA,
+            "sgt_max_dt_beats": SGT_MAX_DT_BEATS,
+            "sgt_token_mode": SGT_TOKEN_MODE,
+            "sgt_top_vocab": SGT_TOP_VOCAB,
             "acc_mean": task_acc_m,
             "acc_std": task_acc_s,
             "f1_mean": task_f1_m,
@@ -811,6 +826,11 @@ def main():
     ap.add_argument("--results-csv", default=None)
     ap.add_argument("--run-id", default=None)
     ap.add_argument("--dataset-id", default=None)
+    ap.add_argument("--sgt-script", default=None)
+    ap.add_argument("--sgt-alpha", type=float, default=None)
+    ap.add_argument("--sgt-max-dt-beats", type=float, default=None)
+    ap.add_argument("--sgt-token-mode", default=None)
+    ap.add_argument("--sgt-top-vocab", type=int, default=None)
     args = ap.parse_args()
 
     globals()["PIECE_VEC_BIN"] = args.piece_vec
@@ -828,6 +848,11 @@ def main():
     globals()["RESULTS_CSV"] = args.results_csv
     globals()["RUN_ID"] = args.run_id
     globals()["DATASET_ID"] = args.dataset_id
+    globals()["SGT_SCRIPT"] = args.sgt_script
+    globals()["SGT_ALPHA"] = args.sgt_alpha
+    globals()["SGT_MAX_DT_BEATS"] = args.sgt_max_dt_beats
+    globals()["SGT_TOKEN_MODE"] = args.sgt_token_mode
+    globals()["SGT_TOP_VOCAB"] = args.sgt_top_vocab
 
     set_seed(SEED)
 
@@ -881,7 +906,14 @@ def main():
 
     print(f"[OK] samples: {X_emb.shape[0]}, d_emb: {X_emb.shape[1]}, d_sgt_raw: {X_sgt.shape[1]}")
     print(f"[OK] emotion_classes: {len(le_emo.classes_)}, genre_classes: {len(le_gen.classes_)}")
-    print("[OK] SGT params: see feature generation script for exact settings")
+    if any(v is not None for v in (SGT_SCRIPT, SGT_ALPHA, SGT_MAX_DT_BEATS, SGT_TOKEN_MODE, SGT_TOP_VOCAB)):
+        print(
+            "[OK] SGT params: "
+            f"script={SGT_SCRIPT}, alpha={SGT_ALPHA}, max_dt_beats={SGT_MAX_DT_BEATS}, "
+            f"token_mode={SGT_TOKEN_MODE}, top_vocab={SGT_TOP_VOCAB}"
+        )
+    else:
+        print("[OK] SGT params: see feature generation script for exact settings")
 
     experiments = build_experiments()
     for exp in experiments:
