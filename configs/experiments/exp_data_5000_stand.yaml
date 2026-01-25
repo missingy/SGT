@@ -8,5 +8,6 @@ dataset:
 steps:
   sgt:
     script: src/sgt_features_standard.py
+    alpha: 2
   train:
     task: both

@@ -1,5 +1,5 @@
 experiment:
-  name: exp_data_500_5emotion_5genre_stand
+  name: exp_data_500_5emotion_5genre_drum
 
 dataset:
   id: Data_500
@@ -7,7 +7,8 @@ dataset:
 
 steps:
   sgt:
-    script: src/sgt_features_standard.py
+    script: src/sgt_features_drums.py
     alpha: 1.5
+    top_vocab: 128
   train:
     task: both

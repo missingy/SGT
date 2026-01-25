@@ -49,8 +49,8 @@ TOP_VOCAB = 128            # SGT dim = TOP_VOCAB^2
 
 # Drums
 INCLUDE_DRUMS = True
-DRUM_TOKEN_MODE = "gm_group"   # 'gm_pitch' or 'gm_group'
-DRUM_GROUP_BIN = 4             # for gm_group
+DRUM_TOKEN_MODE = "functional"   # 'functional' | 'gm_pitch' | 'gm_group'
+DRUM_GROUP_BIN = 4               # for gm_group
 
 # Rhythm position encoding
 USE_POS = True
@@ -59,7 +59,7 @@ POS_APPLY_TO = "drums"          # 'drums' | 'all' | 'none'
 POS_FALLBACK_TO_BASE = True     # if token@pos OOV, try token without @pos
 
 # Vocab budgets (sum may be <= TOP_VOCAB; remaining filled by frequency)
-DRUM_VOCAB_SIZE = 64            # with @pos tokens, drums need more budget
+DRUM_VOCAB_SIZE = 48            # with @pos tokens, drums need more budget
 # Remaining (TOP_VOCAB - DRUM_VOCAB_SIZE) goes to non-drum tokens
 # ==============================
 
@@ -82,7 +82,34 @@ def _drum_base_token(pitch: int) -> str:
     # GM drum pitch is an instrument id, not tonal pitch.
     if DRUM_TOKEN_MODE == "gm_pitch":
         return f"dr:{pitch}"
-    return f"drg:{pitch // DRUM_GROUP_BIN}"
+    if DRUM_TOKEN_MODE == "gm_group":
+        return f"drg:{pitch // DRUM_GROUP_BIN}"
+    if DRUM_TOKEN_MODE == "functional":
+        functional_map = {
+            # --- KICK (rhythmic foundation) ---
+            35: "KICK", 36: "KICK",
+            # --- SNARE (backbeat driver) ---
+            38: "SNAR", 40: "SNAR",  # main snare
+            37: "SNAR", 39: "SNAR",  # sidestick / clap
+            # --- HI-HAT (time pulse) ---
+            42: "HHAT", 44: "HHAT", 46: "HHAT",  # closed / pedal / open
+            # --- TOMS (fills) ---
+            41: "TOMS", 43: "TOMS", 45: "TOMS",
+            47: "TOMS", 48: "TOMS", 50: "TOMS",
+            # --- RIDE (sustain) ---
+            51: "RIDE", 53: "RIDE", 59: "RIDE",
+            # --- CYMBALS (structure accents) ---
+            49: "CYMB", 52: "CYMB", 55: "CYMB", 57: "CYMB",
+        }
+
+        if pitch in functional_map:
+            label = functional_map[pitch]
+        elif 60 <= pitch <= 72:
+            label = "PHIGH"
+        else:
+            label = "PLOW"
+        return f"drg:{label}"
+    raise ValueError("DRUM_TOKEN_MODE must be 'functional' / 'gm_pitch' / 'gm_group'")
 
 
 @dataclass
@@ -314,31 +341,27 @@ def main():
     ap.add_argument("--drum-vocab-size", type=int, default=DRUM_VOCAB_SIZE)
     args = ap.parse_args()
 
-    global ALPHA, MAX_DT_BEATS, TOKEN_MODE, TOP_VOCAB
-    global PROG_GROUP_SIZE, INCLUDE_DRUMS, DRUM_TOKEN_MODE, DRUM_GROUP_BIN
-    global USE_POS, POS_BINS, POS_APPLY_TO, POS_FALLBACK_TO_BASE, DRUM_VOCAB_SIZE
-
-    ALPHA = args.alpha
-    MAX_DT_BEATS = args.max_dt_beats
-    TOKEN_MODE = args.token_mode
-    TOP_VOCAB = args.top_vocab
-    PROG_GROUP_SIZE = args.prog_group_size
-    DRUM_TOKEN_MODE = args.drum_token_mode
-    DRUM_GROUP_BIN = args.drum_group_bin
-    DRUM_VOCAB_SIZE = args.drum_vocab_size
-    POS_BINS = args.pos_bins
-    POS_APPLY_TO = args.pos_apply_to
+    globals()["ALPHA"] = args.alpha
+    globals()["MAX_DT_BEATS"] = args.max_dt_beats
+    globals()["TOKEN_MODE"] = args.token_mode
+    globals()["TOP_VOCAB"] = args.top_vocab
+    globals()["PROG_GROUP_SIZE"] = args.prog_group_size
+    globals()["DRUM_TOKEN_MODE"] = args.drum_token_mode
+    globals()["DRUM_GROUP_BIN"] = args.drum_group_bin
+    globals()["DRUM_VOCAB_SIZE"] = args.drum_vocab_size
+    globals()["POS_BINS"] = args.pos_bins
+    globals()["POS_APPLY_TO"] = args.pos_apply_to
 
     if args.include_drums:
-        INCLUDE_DRUMS = True
+        globals()["INCLUDE_DRUMS"] = True
     if args.exclude_drums:
-        INCLUDE_DRUMS = False
+        globals()["INCLUDE_DRUMS"] = False
     if args.use_pos:
-        USE_POS = True
+        globals()["USE_POS"] = True
     if args.no_pos:
-        USE_POS = False
+        globals()["USE_POS"] = False
     if args.pos_fallback_to_base:
-        POS_FALLBACK_TO_BASE = True
+        globals()["POS_FALLBACK_TO_BASE"] = True
 
     out_dir = os.path.dirname(args.out_features)
     if out_dir:
