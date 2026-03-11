@@ -20,7 +20,7 @@ from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 
 # ============ 配置 ============
-EMB_PATH = "artifacts/midi-embs/myset/piece_vectors.bin"  # 你的曲目级 .bin（文本格式）
+EMB_PATH = "artifacts/midi-embs/myset/piece_vectors.bin"  # 曲目级 .bin（文本格式）
 SGT_PATH = "sgt_features.npy"
 SGT_IDS  = "sgt_ids.npy"
 LABELS_CSV = "labels.csv"

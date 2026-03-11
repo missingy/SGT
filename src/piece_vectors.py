@@ -1,9 +1,10 @@
 # piece_vectors.py
 # ------------------------------------------------------------
-# 作用：
-#   读取节点级 word2vec(文本)向量 + 4个 edgelist，
-#   从每首“文件节点”出发收集该曲目的图节点，做平均 -> 导出曲目级 .bin
-#   同时写出一个对齐情况的 debug CSV
+# Purpose:
+#   Read node-level word2vec (text) vectors + 4 edgelists.
+#   From each "file node", collect the track's graph nodes, average them,
+#   and export track-level .bin vectors.
+#   Also emit a debug CSV about alignment coverage.
 # ------------------------------------------------------------
 import argparse
 import os
@@ -16,28 +17,27 @@ import numpy as np
 import networkx as nx
 from gensim.models import KeyedVectors
 
-# ============ 文件路径 ============
-EMB_PATH      = r"artifacts/midi-embs/myset/embeddings.bin"  # 节点级 embeddings（文本格式！）
-LABELS_CSV    = r"artifacts/midi-embs/myset/labels.csv"      # 两列：piece,label
-EDGELIST_DIR  = r"external/midi2vec/edgelist"               # notes/program/tempo/time.signature.edgelist 所在目录
+# ============ file paths ============
+EMB_PATH      = r"artifacts/midi-embs/myset/embeddings.bin"  # node-level embeddings (text format)
+LABELS_CSV    = r"artifacts/midi-embs/myset/labels.csv"      # two columns: piece,label
+EDGELIST_DIR  = r"external/midi2vec/edgelist"               # notes/program/tempo/time.signature.edgelist dir
+OUT_PIECE_BIN = r"artifacts/midi-embs/myset/piece_vectors.bin"   # exported track-level word2vec (text)
+OUT_DEBUG_CSV = r"artifacts/midi-embs/myset/piece_aggregate_stats.csv"  # debug stats (node counts per track)
+# ===================================
 
-OUT_PIECE_BIN = r"artifacts/midi-embs/myset/piece_vectors.bin"   # 导出的“曲目级”word2vec（文本）
-OUT_DEBUG_CSV = r"artifacts/midi-embs/myset/piece_aggregate_stats.csv"  # 调试统计（每曲聚合到多少节点等）
-# ======================================
-
-# 可调开关
-BINARY_EMB    = False     # embeddings 是文本格式，设 False
-MAX_HOPS      = 1         # 建议 1（只取文件节点的一跳邻居）；2 也可试；None 会吃整个连通分量（不建议）
-INCLUDE_FILE_NODE = True  # 是否把“文件节点”本身也纳入聚合
-MIN_NODES_FOR_AGG = 5     # 少于该节点数则跳过，防止异常样本
-# 过滤“全局 hub 节点”（会跨曲目搭桥，易污染）
+# tunables
+BINARY_EMB    = False     # embeddings are in text format; set False
+MAX_HOPS      = 1         # recommend 1 (only 1-hop neighbors); 2 is optional; None means full component (not advised)
+INCLUDE_FILE_NODE = True  # include the "file node" itself in aggregation
+MIN_NODES_FOR_AGG = 5     # skip if fewer nodes; prevents noisy samples
+# filter "global hub nodes" (cross-track bridges, likely noisy)
 EXCLUDE_PREFIXES = (
-    "vel:", "dur:", "tempo:",                 # 常见通用前缀
-    "http://purl.org/midi-ld/time",           # RDF 时间节点
-    "http://purl.org/midi-ld/tempo"           # RDF 速度节点
+    "vel:", "dur:", "tempo:",                 # common prefixes
+    "http://purl.org/midi-ld/time",           # RDF time node
+    "http://purl.org/midi-ld/tempo"           # RDF tempo node
 )
-# 允许的“有信息”的前缀（可选，如果你想只取音符/乐器等）
-# INCLUDE_ANY_OF = ("note", "notes", "program", "pitch")  # 例子；留空表示不过滤
+# optional: include only "informative" prefixes (e.g. notes/instruments)
+# INCLUDE_ANY_OF = ("note", "notes", "program", "pitch")  # example; empty means no filter
 
 
 def stem_filename(name: str) -> str:
@@ -45,22 +45,25 @@ def stem_filename(name: str) -> str:
     s = re.sub(r'\.midi?$', '', s)
     return s
 
+
 def load_labels(path: str) -> Dict[str, str]:
     labels = {}
     with open(path, newline='', encoding='utf-8') as f:
         reader = csv.DictReader(f)
-        assert 'piece' in reader.fieldnames, "labels.csv 需含列 piece"
-        # 兼容：优先 genre，其次 label
+        assert 'piece' in reader.fieldnames, "labels.csv must include column: piece"
+        # compatibility: prefer genre, fallback to label
         key = 'genre' if 'genre' in reader.fieldnames else 'label'
-        assert key in reader.fieldnames, "labels.csv 需含列 genre（或旧版 label）"
+        assert key in reader.fieldnames, "labels.csv must include column: genre (or legacy label)"
         for row in reader:
             labels[row['piece']] = row[key]
     return labels
+
 
 def load_embeddings(path: str, binary: bool) -> KeyedVectors:
     kv = KeyedVectors.load_word2vec_format(path, binary=binary)
     print(f"[OK] embeddings loaded: {len(kv.index_to_key)} vectors, dim={kv.vector_size}")
     return kv
+
 
 def read_all_edgelists(edgelist_dir: str) -> nx.Graph:
     g = nx.Graph()
@@ -84,8 +87,9 @@ def read_all_edgelists(edgelist_dir: str) -> nx.Graph:
     print(f"[OK] graph edges: {edges}, nodes: {g.number_of_nodes()}")
     return g
 
+
 def index_file_nodes(all_keys: List[str]):
-    """挑出“像文件节点”的 key，并建立末尾片段索引与 genre 索引。"""
+    """Pick keys that look like "file nodes" and build tail-index and genre-index."""
     file_like = []
     for k in all_keys:
         if re.match(r"^[A-Za-z]:", k) or k.lower().startswith('file:'):
@@ -101,15 +105,16 @@ def index_file_nodes(all_keys: List[str]):
         suf = parts[-1].lower()
         suffix_index[suf].append(k)
 
-        m = re.search(r'-data-([a-zA-Z0-9]+)-', k)  # 例：D:-PGM-Clone-data-pop-<basename>
+        m = re.search(r'-data-([a-zA-Z0-9]+)-', k)  # example: D:-PGM-Clone-data-pop-<basename>
         if m:
             genre = m.group(1).lower()
             genre_index[genre].append(k)
 
     return {"_all": file_like, "_suffix": suffix_index, "_genre": genre_index}
 
+
 def find_piece_file_key(piece: str, label: str, file_index) -> Optional[str]:
-    """按末尾片段(基名) + genre 进行匹配；失败时退化为子串包含。"""
+    """Match by tail segment (basename) + genre; fallback to substring match."""
     base = stem_filename(piece)  # e.g. XMIDI_angry_pop_2IDEWIOS
     suf_hits = file_index["_suffix"].get(base, [])
     if len(suf_hits) == 1:
@@ -123,7 +128,7 @@ def find_piece_file_key(piece: str, label: str, file_index) -> Optional[str]:
         print(f"[WARN] multiple file nodes match base '{base}', picking first: {suf_hits[0]}")
         return suf_hits[0]
 
-    # 末尾段未命中：宽松子串
+    # tail miss: relaxed substring matching
     base_no_underscore = base.replace('_','').lower()
     for k in file_index["_all"]:
         low = k.lower()
@@ -135,8 +140,9 @@ def find_piece_file_key(piece: str, label: str, file_index) -> Optional[str]:
 
     return None
 
+
 def bfs_collect(g: nx.Graph, start: str, max_hops: Optional[int]) -> Set[str]:
-    """BFS 收集节点；max_hops=None 表示整个连通分量。"""
+    """BFS collect nodes; max_hops=None means full connected component."""
     if start not in g:
         return set()
     if max_hops is None:
@@ -153,24 +159,27 @@ def bfs_collect(g: nx.Graph, start: str, max_hops: Optional[int]) -> Set[str]:
                 q.append((v, d+1))
     return seen
 
+
 def useful_node(name: str) -> bool:
-    """过滤掉全局 hub 节点；如需只保留某些前缀，可在此加入 INCLUDE 规则。"""
+    """Filter global hub nodes; add INCLUDE rules here if you only want certain prefixes."""
     for p in EXCLUDE_PREFIXES:
         if name.startswith(p):
             return False
-    # 如果你想只保留某些类型，取消注释下一段，并定义 INCLUDE_ANY_OF
+    # If you want to keep only certain types, uncomment next block and define INCLUDE_ANY_OF.
     # if INCLUDE_ANY_OF:
     #     return any(sub in name for sub in INCLUDE_ANY_OF)
     return True
 
+
 def export_word2vec_text(out_path: str, vectors: Dict[str, np.ndarray], dim: int):
-    """按 word2vec 文本格式写出：首行 N dim，后续 'key v1 v2 ...'"""
+    """Write in word2vec text format: first line N dim, then 'key v1 v2 ...'."""
     with open(out_path, 'w', encoding='utf-8', newline='\n') as f:
         f.write(f"{len(vectors)} {dim}\n")
         for key, vec in vectors.items():
             vals = " ".join(f"{x:.6f}" for x in vec.tolist())
             f.write(f"{key} {vals}\n")
     print(f"[OK] saved piece vectors -> {out_path} ({len(vectors)} items)")
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -193,12 +202,12 @@ def main():
     if args.exclude_file_node:
         include_file_node = False
 
-    # 1) ??????
+    # 1) load inputs
     labels = load_labels(args.labels)
     kv = load_embeddings(args.embeddings, binary=args.binary_emb)
     g = read_all_edgelists(args.edgelist_dir)
 
-    # 2) ???????????? piece ?????????????????????
+    # 2) match each piece to its file node
     idx = index_file_nodes(kv.index_to_key)
     piece2filenode: Dict[str, str] = {}
     miss = []
@@ -208,13 +217,13 @@ def main():
             miss.append(piece)
         else:
             piece2filenode[piece] = k
-    print(f"[OK] piece???file-node matched: {len(piece2filenode)} / {len(labels)}")
+    print(f"[OK] piece-to-file-node matched: {len(piece2filenode)} / {len(labels)}")
     if miss:
-        print("[WARN] ???????????????????????????piece????????????10??????")
+        print("[WARN] some pieces did not match a file node; showing first 10")
         for p in miss[:10]:
             print("  -", p)
 
-    # 3) ?????????????????????????????????????????????
+    # 3) aggregate nodes into piece vectors
     dim = kv.vector_size
     piece_vecs: Dict[str, np.ndarray] = {}
     stats_rows = []
@@ -227,7 +236,7 @@ def main():
         if not include_file_node:
             nodes.discard(fnode)
 
-        # ?????? & ?????????
+        # keep nodes with embeddings and pass filters
         picked = [n for n in nodes if n in kv and useful_node(n)]
         if len(picked) < args.min_nodes:
             stats_rows.append([piece, fnode, len(nodes), len(picked), "SKIP(<min)"])
@@ -240,11 +249,11 @@ def main():
 
     print(f"[OK] built piece vectors: {len(piece_vecs)} / {len(labels)}, collected vec-nodes total: {total_vec_nodes}")
 
-    # 4) ?????? word2vec ??????
+    # 4) export word2vec text
     os.makedirs(os.path.dirname(args.out_piece_bin), exist_ok=True)
     export_word2vec_text(args.out_piece_bin, piece_vecs, dim)
 
-    # 5) ??????????????????
+    # 5) export stats CSV
     os.makedirs(os.path.dirname(args.out_debug_csv), exist_ok=True)
     with open(args.out_debug_csv, "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
