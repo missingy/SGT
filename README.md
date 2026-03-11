@@ -70,6 +70,23 @@ pip install -r requirements.txt
 
 ---
 
+## Adding a Dataset (e.g. XMIDI)
+Datasets live under `data/` and are ignored by Git, so you must place them locally.
+
+Expected format:
+- Each dataset folder contains XMIDI `.mid` files following the same naming/labeling convention as the XMIDI source.
+- Example dataset roots used by configs: `data/Data_500`, `data/Data_5000`
+
+To create a smaller subset for initial experiments, you can use the legacy helper:
+
+```bash
+python legacy/random_select_music.py
+```
+
+Use it to sample from your XMIDI collection and write a smaller dataset (e.g., `data/Data_500`) that matches the expected XMIDI format.
+
+---
+
 ## Key Directories
 - `configs/`: base, dataset, and experiment configs that define the full pipeline
 - `src/`: core scripts and step implementations
